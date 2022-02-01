@@ -22,6 +22,10 @@ library(ggridges)
 theme_set(theme_tufte())
 #install.packages("widyr")
 library(widyr)
+install.packages("ggraph")
+library(ggraph)
+library(igraph)
+library(tidytext)
 ```
 
 Importing data.
@@ -115,8 +119,24 @@ coffee_metrics %>%
             sd = sd(value)) %>%
   arrange(desc(average))
 
-coffee_metrics %>%
+correlations <- coffee_metrics %>%
   pairwise_cor(metric, coffee_id, value, sort = TRUE)
+
+
+coffee_metrics %>%
+  group_by(metric) %>%
+  mutate(centered = value - mean(value)) %>%
+  ungroup() %>%
+  widely_svd(metric, coffee_id, centered) %>%
+  filter(dimension <= 4) %>%
+  mutate(metric = reorder_within(metric, value, dimension)) %>%
+  ggplot(aes(value, metric)) +
+  geom_col() +
+  scale_y_reordered() +
+  facet_wrap(~ dimension, scales = "free_y") +
+  theme_few() +
+  labs(x = "Value",
+       y = "Metric")
 ```
 
 
