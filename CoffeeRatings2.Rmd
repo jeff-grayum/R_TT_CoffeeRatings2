@@ -1,0 +1,122 @@
+---
+title: "Coffee Ratings 2"
+author: "Jeff Grayum"
+date: "1/31/2022"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Loading libraries.
+```{r}
+library(tidyverse)
+library(tidytuesdayR)
+library(scales)
+library(ggthemes)
+#install.packages("ggridges")
+library(ggridges)
+theme_set(theme_tufte())
+#install.packages("widyr")
+library(widyr)
+```
+
+Importing data.
+```{r}
+tuesdata <- tidytuesdayR::tt_load('2020-07-07')
+
+coffee_ratings <- tuesdata$coffee_ratings %>%
+  filter(total_cup_points > 1)
+```
+
+```{r}
+coffee_ratings %>%
+  view()
+
+coffee_ratings %>%
+  count(species, sort = TRUE)
+
+coffee_ratings %>%
+  count(species, variety, sort = TRUE)
+
+coffee_lumped <- coffee_ratings %>%
+  filter(!is.na(variety)) %>%
+  mutate(variety = fct_lump(variety, 12), sort = TRUE) 
+  
+coffee_lumped %>%  
+  mutate(variety = fct_reorder(variety, total_cup_points)) %>%
+  ggplot(aes(total_cup_points, variety)) +
+  geom_boxplot() +
+  labs(x = "Total cup points",
+       y = "Variety")
+
+coffee_lumped %>%
+  ggplot(aes(total_cup_points, fill = variety)) +
+  geom_histogram(binwidth = 2) +
+  facet_wrap(~ variety, scale = "free_y") +
+  theme(legend.position = "none")
+
+```
+
+```{r}
+coffee_ratings %>%
+  count(producer, sort = TRUE)
+
+coffee_ratings %>%
+  summarize(across(everything(), ~ mean(!is.na(.)))) %>%
+  gather() %>%
+  view()
+
+coffee_ratings %>%
+  count(company, sort = TRUE)
+
+coffee_ratings %>%
+  count(color, sort = TRUE)
+
+coffee_ratings %>%
+  count(country = fct_lump(country_of_origin, 12), sort = TRUE) %>%
+  filter(!is.na(country)) %>%
+  mutate(country = fct_reorder(country, n)) %>%
+  ggplot(aes(n, country)) +
+  geom_col()
+
+coffee_ratings %>%
+  filter(!is.na(country_of_origin)) %>%
+  mutate(country = fct_lump(country_of_origin, 12),
+         country = fct_reorder(country, total_cup_points)) %>%
+         ggplot(aes(total_cup_points, country)) +
+         geom_boxplot() +
+  labs(x = "Total cup points",
+       y = "Country") +
+  theme_hc()
+```
+
+
+
+````{r}
+coffee_metrics <- coffee_ratings %>%
+  mutate(coffee_id = row_number()) %>%
+  select(coffee_id, total_cup_points, variety, company, country_of_origin, aroma:moisture) %>%
+  pivot_longer(aroma:cupper_points, names_to = "metric", values_to = "value") 
+
+coffee_metrics %>%
+  mutate(metric = fct_reorder(metric, value)) %>%
+  ggplot(aes(value, metric)) +
+  geom_density_ridges() +
+  labs(x = "Metric",
+       y = "Value")
+
+coffee_metrics %>%
+  group_by(metric) %>%
+  summarize(average = mean(value),
+            sd = sd(value)) %>%
+  arrange(desc(average))
+
+coffee_metrics %>%
+  pairwise_cor(metric, coffee_id, value, sort = TRUE)
+```
+
+
